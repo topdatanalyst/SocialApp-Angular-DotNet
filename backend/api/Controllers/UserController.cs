@@ -32,11 +32,41 @@ public class UserController : Controller
         user.Email = body.Email;
         user.Password = user.EncryptPasswordBase64(body.Password);
 
-        //TODO Check if user already exists in the database
+        // Check if user already exists in the database 
+        var checkUser = await _userService.GetUserByEmailAsync(user.Email);
+        if (checkUser != null)
+        {
+            return Conflict(new { message = "User already exists" });
+        }  
+
         await _userService.CreateUserAsync(user);
         //TODO Generate JWT token and return it to the client
 
         return Ok(new { result = user });
     }
 
+    [HttpPost]
+    [Route("signin")]
+    public async Task<IActionResult> LogInUser([FromBody] LoginInterface body)
+    {
+        if(body.Email == null || body.Password == null)
+        {
+            return BadRequest(new { message = "Email and password are required" });
+        }
+
+        // Check if user exists in the database
+        var user = await _userService.GetUserByEmailAsync(body.Email);
+        var decodedPassword = user?.DecryptPasswordBase64(user.Password);   
+        if (user is  null)
+        {
+            return NotFound(new { message = "User not found" });
+        } else if (decodedPassword != body.Password)
+        {
+            return Unauthorized(new { message = "Invalid password" });
+        }else
+        {
+            //TODO Generate JWT token and return it to the client
+            return Ok(new { result = user });
+        }   
+    }
 }

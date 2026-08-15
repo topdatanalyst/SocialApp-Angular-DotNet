@@ -24,6 +24,11 @@ namespace backend.api.Services
             await _usersCollection.InsertOneAsync(user);
             return; 
         }
+
+        public async Task<Users?> GetUserByEmailAsync(string email)
+        {
+            return await _usersCollection.Find(user => user.Email == email).FirstOrDefaultAsync();
+        }   
     }
 }
 

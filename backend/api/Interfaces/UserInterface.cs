@@ -7,3 +7,9 @@ public class CreateUserInterface
     public string? Email { get; set; } 
     public string? Password { get; set; } 
 }
+
+public class LoginInterface
+{
+    public string? Email { get; set; } 
+    public string? Password { get; set; } 
+}
