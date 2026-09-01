@@ -2,6 +2,9 @@ using backend.api.Services;
 using backend.api.Models;   
 using Microsoft.AspNetCore.Mvc;
 using backend.api.interfaces;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
 
 namespace backend.api.Controllers;
 
@@ -41,8 +44,31 @@ public class UserController : Controller
 
         await _userService.CreateUserAsync(user);
         //TODO Generate JWT token and return it to the client
+        // Create claims for the JWT token
+            var claims = new List<Claim>    
+            {
+                new Claim(ClaimTypes.Name, user.Username ?? throw new InvalidOperationException("Username is null.") ),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString() ?? throw new InvalidOperationException("User ID is null.")),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString() ?? throw new InvalidOperationException("User ID is null.")),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+            // Get the JWT secret key from configuration
+            var tokenSecret = _configuration.GetValue<string>("JwtSecret:SecretKey");
+            // Create a symmetric security key using the secret key
+            var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(tokenSecret ?? throw new InvalidOperationException("JWT secret key is not configured.")));    
+            // Create signing credentials using the security key and HMAC SHA256 algorithm
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256); 
+            var expires = DateTime.UtcNow.AddHours(2);
+            // Create the JWT token with issuer, audience, claims, expiration, and signing credentials  
+            var token = new JwtSecurityToken(
+                issuer: "https://localhost:7206",
+                audience: "https://localhost:7206",
+                claims: claims,
+                expires: expires,
+                signingCredentials: creds
+            );
 
-        return Ok(new { result = user });
+        return Ok(new { result = user, token = new JwtSecurityTokenHandler().WriteToken(token), expiration = expires });
     }
 
     [HttpPost]
@@ -66,7 +92,31 @@ public class UserController : Controller
         }else
         {
             //TODO Generate JWT token and return it to the client
-            return Ok(new { result = user });
+            // Create claims for the JWT token
+            var claims = new List<Claim>    
+            {
+                new Claim(ClaimTypes.Name, user.Username ?? throw new InvalidOperationException("Username is null.") ),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString() ?? throw new InvalidOperationException("User ID is null.")),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString() ?? throw new InvalidOperationException("User ID is null.")),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+            // Get the JWT secret key from configuration
+            var tokenSecret = _configuration.GetValue<string>("JwtSecret:SecretKey");
+            // Create a symmetric security key using the secret key
+            var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(tokenSecret ?? throw new InvalidOperationException("JWT secret key is not configured.")));    
+            // Create signing credentials using the security key and HMAC SHA256 algorithm
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256); 
+            var expires = DateTime.UtcNow.AddHours(2);
+            // Create the JWT token with issuer, audience, claims, expiration, and signing credentials  
+            var token = new JwtSecurityToken(
+                issuer: "https://localhost:7206",
+                audience: "https://localhost:7206",
+                claims: claims,
+                expires: expires,
+                signingCredentials: creds
+            );
+
+            return Ok(new { result = user, token = new JwtSecurityTokenHandler().WriteToken(token), expiration = expires });
         }   
     }
 }
