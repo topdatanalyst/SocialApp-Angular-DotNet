@@ -5,6 +5,7 @@ using backend.api.interfaces;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.api.Controllers;
 
@@ -141,5 +142,13 @@ public class UserController : Controller
         {
             return StatusCode(500, new { message = "An error occurred while retrieving the user", error = ex.Message });
         }
+    }
+
+    [HttpPatch]
+    [Route("test"), Authorize]
+    public IActionResult Test()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Ok(new { message = "Authorized", userId });
     }
 }
