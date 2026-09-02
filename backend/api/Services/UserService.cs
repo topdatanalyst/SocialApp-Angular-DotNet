@@ -29,6 +29,11 @@ namespace backend.api.Services
         {
             return await _usersCollection.Find(user => user.Email == email).FirstOrDefaultAsync();
         }   
+
+        public async Task<Users?> GetUserByIdAsync(string id)
+        {
+            return await _usersCollection.Find(user => user.Id == id).FirstOrDefaultAsync();
+        }   
     }
 }
 

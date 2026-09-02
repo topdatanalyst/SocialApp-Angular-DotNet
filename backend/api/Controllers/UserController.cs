@@ -119,4 +119,27 @@ public class UserController : Controller
             return Ok(new { result = user, token = new JwtSecurityTokenHandler().WriteToken(token), expiration = expires });
         }   
     }
+
+    [HttpGet]
+    [Route("getUser/{id}")]    
+    public async Task<IActionResult> GetUserById([FromRoute] string id)
+    {
+        try
+        {
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user is null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // TODO return also the user posts 
+
+            return Ok(new { result = user, posts = Array.Empty<object>() }); 
+
+        }         
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "An error occurred while retrieving the user", error = ex.Message });
+        }
+    }
 }
