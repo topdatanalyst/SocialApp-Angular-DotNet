@@ -144,6 +144,49 @@ public class UserController : Controller
         }
     }
 
+    [HttpPut]
+    [Route("updateUser/{id}"), Authorize]
+    public async Task<IActionResult> UpdateUser([FromRoute] string id, [FromBody] UpdateUserInterface body)
+    {
+        try
+        {
+            if (body.UserName == null || body.ImageUrl == null || body.Bio == null)
+            {
+                return BadRequest(new { message = "At least one field is required to update" });
+            }
+
+            // Check if the user is authorized to update the user   
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId?.ToString() != id)
+            {
+                return Unauthorized(new { message = "You are not authorized to update this user" });
+            }
+
+            // Check if the user exists in the database
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user is null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            user.Username = body.UserName;
+            user.ImageUrl = body.ImageUrl;  
+            user.Bio = body.Bio;    
+
+            var updatedUser = await _userService.UpdateUserAsync(id, user);
+            if (updatedUser is null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            return Ok( new { message = "User updated successfully", result = updatedUser });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "An error occurred while updating the user", error = ex.Message });
+        }
+    }
+
     [HttpPatch]
     [Route("test"), Authorize]
     public IActionResult Test()

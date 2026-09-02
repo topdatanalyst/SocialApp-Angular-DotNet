@@ -34,6 +34,11 @@ namespace backend.api.Services
         {
             return await _usersCollection.Find(user => user.Id == id).FirstOrDefaultAsync();
         }   
+
+        public async Task<Users?> UpdateUserAsync(string id, Users updatedUser)
+        {
+            return await _usersCollection.FindOneAndReplaceAsync(user => user.Id == id, updatedUser);
+        }   
     }
 }
 

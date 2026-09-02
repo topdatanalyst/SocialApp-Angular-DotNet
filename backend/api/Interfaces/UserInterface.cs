@@ -8,6 +8,13 @@ public class CreateUserInterface
     public string? Password { get; set; } 
 }
 
+public class UpdateUserInterface
+{
+    public string? UserName { get; set; }
+    public string? ImageUrl { get; set; }   
+    public string? Bio { get; set; } 
+}
+
 public class LoginInterface
 {
     public string? Email { get; set; } 
