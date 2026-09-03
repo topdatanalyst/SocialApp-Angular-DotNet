@@ -260,6 +260,73 @@ public class UserController : Controller
 
     }
 
+    [HttpGet]
+    [Route("getSuggested"), Authorize]
+    public async Task<IActionResult> GetSuggestedUsers([FromQuery] string id)
+    {
+        try
+        {
+            if(id == "undefined") return BadRequest(new {Message = "id is undefined ", Success = false});
+
+            var mainUser = await _userService.GetUserByIdAsync(id);
+            if (mainUser is null) return  NotFound(new {Message = "user not found! ", Success = false});
+        
+            // get the following list of the user
+            var FollowingList = mainUser.Following;
+            if (FollowingList is null) return  NotFound(new {Message = "null follwing list for  user ", Success = false});
+
+            // get the users that the user is following
+            var FoloUsersList = new List<Users>{};
+            foreach( var Uid in FollowingList)
+            {
+                var getuserFollwoing = await _userService.GetUserByIdAsync(Uid);
+                if (getuserFollwoing != null){
+                     FoloUsersList.Add(getuserFollwoing);
+                }
+            }
+        
+        // get the followers and following of the users that the user is following
+
+        // is list to store the ids of the users that are already suggested to avoid duplicates
+        var usersidesfrosug = new List<string>{};
+        // final list of users to be suggested
+        var FinalUsers = new List<Users>{};
+        // loop through the users that the user is following and get their followers and following
+        foreach (var us in FoloUsersList ){
+            // followers
+            if (us.Followers != null && mainUser.Id != null){
+                foreach( var ids in us.Followers){
+                    if (usersidesfrosug.Contains(ids) | ids == mainUser.Id.ToString()) continue;
+                    var gus = await _userService.GetUserByIdAsync(ids);
+                    if (gus != null) FinalUsers.Add(gus);
+                    usersidesfrosug.Add(ids);
+                }
+            }
+            // following
+            if (us.Following != null && mainUser.Id != null){
+                foreach( var ids in us.Following){
+                    if (usersidesfrosug.Contains(ids) | ids == mainUser.Id.ToString()) continue;
+                    var gus = await _userService.GetUserByIdAsync(ids);
+                    if (gus != null) FinalUsers.Add(gus);
+                    usersidesfrosug.Add(ids);
+                }
+            }   
+        }
+
+         // return the result 
+            return Ok (new {
+                Users = FinalUsers,
+                Success = true,
+                 Message = "Successfully"
+            });
+        }
+        catch ( Exception ex)
+        {
+            
+            return BadRequest(new {Message = ex.Message, Success = false});
+        }
+    }
+
     [HttpPatch]
     [Route("test"), Authorize]
     public IActionResult Test()
