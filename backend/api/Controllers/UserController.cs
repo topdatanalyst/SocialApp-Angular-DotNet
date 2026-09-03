@@ -144,7 +144,7 @@ public class UserController : Controller
         }
     }
 
-    [HttpPut]
+    [HttpPatch]
     [Route("updateUser/{id}"), Authorize]
     public async Task<IActionResult> UpdateUser([FromRoute] string id, [FromBody] UpdateUserInterface body)
     {
@@ -185,6 +185,79 @@ public class UserController : Controller
         {
             return StatusCode(500, new { message = "An error occurred while updating the user", error = ex.Message });
         }
+    }
+
+    [HttpPatch]
+    [Route("{id}/following"), Authorize]
+    public async Task<IActionResult> Following([FromRoute] string id)
+    {
+        if (id == null)
+        {
+            return BadRequest(new { message = "User ID is required" });
+        }
+        try
+        {
+            // Check if the user is authorized to follow the user2
+            var user2 = await _userService.GetUserByIdAsync(id);
+            if (user2 is null || user2.Id is null ) return NotFound (new {Message = "user Not found", Success = false});
+
+            // Get the user ID from the JWT token
+            // user is the user who is following user2
+            var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userIDToken == null){
+                return BadRequest(new {message = "proplem with provided id data of token."});
+            }
+
+            // user1 is the user who is following user2 
+            var user1 = await _userService.GetUserByIdAsync(userIDToken.ToString());
+            if (user1 is null || user1.Id is null ) return NotFound (new {Message = "user Not found", Success = false});
+            
+            // create a list of following and followers if they are null
+            if(user1.Following == null){
+                user1.Following = new List<string>{};
+            }
+            
+            // check if user2 is already 
+            if(user2.Followers == null){
+                user2.Followers = new List<string>{};
+            }
+
+            // helper variable
+            var fo = user1.Following;
+            var fo2 = user2.Followers;
+
+            // if user1 is already following user2, then unfollow, else follow
+            if (fo.Contains(id)){
+                fo.Remove(id);
+                user1.Following = fo;
+                fo2.Remove(user1.Id);
+                user2.Followers = fo2;
+            } else {
+                fo.Add(id);
+                user1.Following = fo;
+                fo2.Add(user1.Id);
+                user2.Followers = fo2;
+                //TODO send notification to user2 that user1 is following them  
+            }
+
+            // update the users in the database
+            await _userService.UpdateUserAsync(user1.Id.ToString(), user1);
+            await _userService.UpdateUserAsync(user2.Id.ToString(), user2);
+
+
+            return Ok(new {
+                user1 = user1,
+                user2 = user2, 
+                Succes = true,
+                Message = "Successfully."
+            });
+            
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = "An error occurred while following the user", error = ex.Message });
+        }
+
     }
 
     [HttpPatch]
