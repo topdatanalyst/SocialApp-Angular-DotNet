@@ -38,7 +38,15 @@ namespace backend.api.Services
         public async Task<Users?> UpdateUserAsync(string id, Users updatedUser)
         {
             return await _usersCollection.FindOneAndReplaceAsync(user => user.Id == id, updatedUser);
-        }   
+        }  
+
+        public async Task DeleteUserAsync(string id)
+        {
+            // Create a filter to find the user by ID and delete it from the collection
+            FilterDefinition<Users> filter = Builders<Users>.Filter.Eq(user => user.Id, id);
+            await _usersCollection.DeleteOneAsync(filter);
+            return;
+        }
     }
 }
 

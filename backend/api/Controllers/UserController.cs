@@ -326,6 +326,19 @@ public class UserController : Controller
             return BadRequest(new {Message = ex.Message, Success = false});
         }
     }
+    
+    [HttpDelete]
+    [Route("deleteUser/{id}"), Authorize]
+    public async Task<IActionResult> DeleteUser([FromRoute] string id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);    
+        if (userId?.ToString() != id)
+        {
+            return Unauthorized(new { message = "You are not authorized to delete this user" });
+        }
+        await _userService.DeleteUserAsync(id);
+        return Ok(new { message = "User deleted successfully" });
+    }
 
     [HttpPatch]
     [Route("test"), Authorize]

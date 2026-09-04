@@ -104,5 +104,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.MapControllers();
 
+app.MapGet("/", () => "Welcome to the SocialAPI Rest!");
+
 app.Run();
 
