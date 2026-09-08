@@ -62,5 +62,28 @@ namespace backend.api.Controllers
             return Ok(new {post = post});
         }
 
+        [HttpPost]
+        [Route("{id}/commentPost")]//, Authorize
+        public async Task<IActionResult> CommentPost([FromRoute] string id, [FromBody] CommentBodyInterface body){
+
+            if(body.Value is null || id is null){
+                return BadRequest(new {message = "proplem with provided body data id or comment value"});
+            }
+
+            var post = await _postService.GetPostByID(id);
+            if(post is null) return NotFound(new {message = "post not found", Success = false});
+
+            // Add the comment to the post's comments collection
+            post.Comments.Add(body.Value);
+
+            // Update the post in the database
+            var npost = await _postService.UpdatePost(id, post);
+
+            if(npost is null) return NotFound(new {message = "proplem with prodived value", Success = false});
+
+            return Ok(new {data=post});
+
+        }
+
     }
 }
