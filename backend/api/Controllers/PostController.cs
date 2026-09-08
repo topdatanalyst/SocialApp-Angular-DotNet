@@ -22,7 +22,7 @@ namespace backend.api.Controllers
         }
 
         [HttpPost]
-        [Route(""), Authorize]
+        [Route("createPost"), Authorize]
         public async Task<IActionResult> CreatePost([FromBody] CraeteOrUpdatePostInterface body){
             
             var post = new Post{};
@@ -46,6 +46,20 @@ namespace backend.api.Controllers
             }
 
             return Ok(new { post });
+        }
+
+        [HttpGet]
+        [Route("getPostById/{id}")]
+        public async Task<IActionResult> GetPostById([FromRoute] string id){
+            if(id is null){
+                return BadRequest(new {message = "proplem with provided id"});
+            }
+            var post = new Post{};
+            post = await _postService.GetPostByID(id);
+
+            if(post is null) return NotFound(new {message = "post not found", Success = false});
+
+            return Ok(new {post = post});
         }
 
     }
