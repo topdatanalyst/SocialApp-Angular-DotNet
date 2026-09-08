@@ -14,6 +14,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<MongoDBSettings>(builder.Configuration.GetSection("MongoDB"));
 // Register the UserService         
 builder.Services.AddSingleton<UserService>();
+// Register the PostService
+builder.Services.AddSingleton<PostService>();
 // Register Controllers 
 builder.Services.AddControllers();  
 
