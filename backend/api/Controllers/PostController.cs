@@ -85,5 +85,22 @@ namespace backend.api.Controllers
 
         }
 
+         [HttpGet]
+         [Route("searchPost")]
+        public async Task<IActionResult> SearchForUsersPost([FromQuery] string searchQuery){
+
+            if(searchQuery is null){
+            return BadRequest(new {message = "proplem with provided serchquery"});
+            }
+
+            var posts = new List<Post>();
+            var users = new List<User>();
+
+            (posts, users) = await _postService.Search(searchQuery);
+
+            return Ok(new {posts= posts, user = users});
+        }
+
+
     }
 }

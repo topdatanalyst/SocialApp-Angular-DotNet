@@ -44,22 +44,32 @@ namespace backend.api.Services
 
         public async Task<(List<Post>, List<User>)> Search(string searchQuery){
 
-            // Create filter definitions for searching posts and users
+             /* // Create filter definitions for searching posts and users
             FilterDefinition<Post> FilterPost = new BsonDocument
             {
+                // Search for posts where the title is not equal to the search query and the message contains the search query
                 {"title", new BsonDocument("$ne", searchQuery)},
                 {"message", new BsonDocument("$regex", searchQuery)}
             };
 
             FilterDefinition<User> FilterUser = new BsonDocument
             {
-                {"name", new BsonDocument("$ne", searchQuery)},
+                // Search for users where the username is not equal to the search query and the email contains the search query
+                {"username", new BsonDocument("$ne", searchQuery)},
                 {"email", new BsonDocument("$regex", searchQuery)}
             };
+            */
+             
+            // Definizione dei filtri per la ricerca di Post e Utenti
+            var filterPost = Builders<Post>.Filter.Ne(p => p.Title, searchQuery) &
+                 Builders<Post>.Filter.Regex(p => p.Message, new BsonRegularExpression(searchQuery, "i"));
+
+            var filterUser = Builders<User>.Filter.Ne(u => u.Username, searchQuery) &
+                 Builders<User>.Filter.Regex(u => u.Email, new BsonRegularExpression(searchQuery, "i"));
 
             // Execute the search queries and retrieve the results
-            List<Post> posts = (await _postCollection.FindAsync(FilterPost)).ToList();
-            List<User> users = (await _userCollection.FindAsync(FilterUser)).ToList();
+            List<Post> posts = (await _postCollection.FindAsync(filterPost)).ToList();
+            List<User> users = (await _userCollection.FindAsync(filterUser)).ToList();
 
             if(posts is null){
                 posts = new List<Post>();
