@@ -123,6 +123,48 @@ namespace backend.api.Controllers
             return Ok(_postService.Query(ides, Page));
         }
 
+        [HttpPatch]
+        [Route("{id}/updatePost"), Authorize]
+        public async Task<IActionResult> UpdatePost([FromRoute] string id, [FromBody] CraeteOrUpdatePostInterface body){
+
+            if(body.Title == null || body.Message == null || body.SelectedFile == null){
+                return BadRequest(new {message = "proplem with provided body data."});
+            }
+
+            // Get the user ID from the JWT token   
+            var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
+            if (userIDToken is null){
+                return NotFound(new {message = "Not Authorized."});
+            }
+
+            // Retrieve the post by ID using the PostService
+            // id is the post ID
+            var post = new Post{};
+            post = await _postService.GetPostByID(id);
+
+            if (post is null){
+                return NotFound(new {message = "post with given id is not found.."});
+            }
+
+            if (userIDToken != post.Creator){
+                return Unauthorized(new {message = "Not Authorized. you are not the creator of post"});
+
+            }
+
+            // Update the post properties with the values from the request body
+            post.Title = body.Title?? post.Title;
+            post.Message = body.Message?? post.Message;
+            post.SelectedFile = body.SelectedFile?? post.SelectedFile;
+
+            // Update the post using the PostService
+            var upPost = await _postService.UpdatePost(id, post);
+            if (upPost is null){
+                return BadRequest(new {message = "can not update the post."});
+            }
+
+            return Ok(new { post = post });
+        }
+
 
     }
 }
