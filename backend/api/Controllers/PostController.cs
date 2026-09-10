@@ -101,6 +101,28 @@ namespace backend.api.Controllers
             return Ok(new {posts= posts, user = users});
         }
 
+        [HttpGet]
+        [Route("getpostsPagenation")]
+        public async Task<IActionResult> GetPostsPagenationAsync([FromQuery] int Page, [FromQuery] string id){
+
+            // Validate the provided id
+            if(id == "undefind") return BadRequest(new {message = "proplem with provided id"});
+
+            var user = new User{};
+            // Retrieve the user by id using the PostService
+            user = await _postService.GetUsByid(id);
+
+            if(user is null || user.Id is null){
+                return NotFound(new {message = "user with given id is not found."});
+            }
+ 
+            // Get the list of user IDs that the user is following
+            var ides = user.Following;
+            ides.Add(user.Id.ToString());
+
+            return Ok(_postService.Query(ides, Page));
+        }
+
 
     }
 }
