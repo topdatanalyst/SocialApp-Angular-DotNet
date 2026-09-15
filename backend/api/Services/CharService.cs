@@ -24,12 +24,12 @@ namespace backend.api.Services
         public async Task SendMessageAsync(Message msg, string sender, string recever){
             await _messageCollection.InsertOneAsync(msg);
 
-            setUpdateUnreadedMessageBetweenUsers(sender, recever);
+            _ = SetUpdateUnreadedMessageBetweenUsers(sender, recever);
             return;
         }
 
         // Method to update unread message count between users
-        public async void setUpdateUnreadedMessageBetweenUsers(string sender, string recever){
+        public async Task SetUpdateUnreadedMessageBetweenUsers(string sender, string recever){
             // Create a filter to find the document with the specified MainUserid and OtherUserid
             var filter = Builders<UnReadedMessages>.Filter.And(
                 Builders<UnReadedMessages>.Filter.Eq(x => x.MainUserid, recever),
