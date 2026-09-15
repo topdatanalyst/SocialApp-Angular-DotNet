@@ -165,6 +165,57 @@ namespace backend.api.Controllers
             return Ok(new { post = post });
         }
 
+        [HttpPatch]
+        [Route("{id}/likePost"), Authorize]
+        public async Task<IActionResult> LikeDisLikePost([FromRoute] string id){
+            var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
+            if (userIDToken is null){
+                return NotFound(new {message = "Not Authorized."});
+            }
+            
+            var post = new Post{};
+            post = await _postService.GetPostByID(id);
+            
+            if (post is null){
+                return NotFound(new {message = "post with given id is not found.."});
+            }
+
+            if(post.Likes.Contains(userIDToken)){
+                post.Likes.Remove(userIDToken);
+            } else {
+                post.Likes.Add(userIDToken);
+                // TODO Call Notification .. notofy the user about the new user like about the post
+                // if (post.creator != null){
+                //         var user = new User{};
+                //     user = await _postService.GetUsByid(userIDToken);
+                //     if (user is not null){
+                                
+                //     var deat = user.name + " Like Your Post";
+                //     var us = new UserIn{name = user.name, avatar = user.imageUrl};
+                //     var nofification = new Notification {
+                //         mainuid = post.creator,
+                //         targetid =id,
+                //         deatils = deat,
+                //         user = us
+                //     };
+                    
+                //     await _notificationService.CreateNotification(nofification);
+
+                // }
+                //}
+            }
+
+            // upate post up
+            var upPost = await _postService.UpdatePost(id, post);
+            if (upPost is null){
+                return BadRequest(new {message = "can not update the post."});
+            }    
+
+            return Ok(new {post = post});  
+
+        }
+
+
 
     }
 }
