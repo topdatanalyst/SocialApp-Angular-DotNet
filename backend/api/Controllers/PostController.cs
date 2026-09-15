@@ -215,6 +215,30 @@ namespace backend.api.Controllers
 
         }
 
+        [HttpDelete]
+        [Route("{id}/deletePost"), Authorize]
+        public async Task<IActionResult>  DeletePost([FromRoute] string id){
+            var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
+            if (userIDToken is null){
+                return NotFound(new {message = "Not Authorized."});
+            }
+            
+            var post = new Post{};
+            post = await _postService.GetPostByID(id);
+            
+            if (post is null){
+                return NotFound(new {message = "post with given id is not found.."});
+            }
+
+            if (userIDToken != post.Creator){
+                return Unauthorized(new {message = "Not Authorized. you are not the creator of post"});
+            }
+
+            await _postService.DeletePostAsync(id);
+            return Ok(new {message = "post Deleted Successfully."});
+
+        }
+
 
 
     }
