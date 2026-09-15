@@ -19,6 +19,13 @@ namespace backend.api.Services
             _userCollection = database.GetCollection<User>(mongoDBSettings.Value.UserCollection);
         }
 
+        public async Task SendMessageAsync(Message msg, string sender, string recever){
+            await _messageCollection.InsertOneAsync(msg);
+
+            setUpdateUnreadedMessageBetweenUsers(sender, recever);
+            return;
+        }
+
         public async void setUpdateUnreadedMessageBetweenUsers(string sender, string recever){
             // Create a filter to find the document with the specified MainUserid and OtherUserid
             var filter = Builders<UnReadedMessages>.Filter.And(
