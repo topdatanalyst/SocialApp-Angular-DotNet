@@ -23,7 +23,7 @@ namespace backend.api.Controllers
         public async Task<IActionResult> SendMessage([FromBody] SendMessageInterface body){
 
             if(body.Content ==null|| body.Sender ==null|| body.Recever ==null){
-                            return BadRequest();
+                    return BadRequest(new {success = false, message = "Content, Sender and Recever are required"});
             }
 
             var msg = new Message
@@ -39,6 +39,21 @@ namespace backend.api.Controllers
             }
             return Ok(new {success = true});
 
+        }
+
+        [HttpGet]
+        [Route("GetMsgsByNums")]
+        public async Task<IActionResult> GetMessagesByNumsBetwenTwoUsers([FromQuery] string from, [FromQuery] string firstuid, [FromQuery] string seconduid){
+           
+            if(string.IsNullOrEmpty(from)|| string.IsNullOrEmpty(firstuid) || string.IsNullOrEmpty(seconduid)){
+                return BadRequest(new {success = false, message = "problem with provided query parameters."});
+            }
+ 
+            // Call the service to get messages by number
+            // if from = 0, it will return all messages between the two users
+            // if from > 0, it will return the last 'from' number of messages between the two users
+            List<Message> msgs = await _chatService.GetMessageByNum(int.Parse(from), firstuid, seconduid);
+            return Ok(new { success = true, msgs });
         }
     }
 }
