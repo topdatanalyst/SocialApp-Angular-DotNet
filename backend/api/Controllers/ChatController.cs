@@ -55,5 +55,21 @@ namespace backend.api.Controllers
             List<Message> msgs = await _chatService.GetMessageByNum(int.Parse(from), firstuid, seconduid);
             return Ok(new { success = true, msgs });
         }
+
+        [HttpGet]
+        [Route("GetUserUnreadedMessage")]
+        public async Task<IActionResult> GetUserUnReadedMessage([FromQuery] string userid){
+            
+            if(string.IsNullOrEmpty(userid)){
+                return BadRequest(new {message = "problem with provided query parameters."});
+            }
+
+            List<UnReadedMessages> urm = await _chatService.GetUserUnreadedmsgs(userid);
+
+            int totalUnreadedMessageCount = urm.Sum(msg => msg.NumOfUnreadedMessages);
+
+            return Ok(new {messages = urm, total = totalUnreadedMessageCount});
+        }
+
     }
 }
