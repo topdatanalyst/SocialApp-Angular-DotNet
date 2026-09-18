@@ -18,6 +18,8 @@ builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<PostService>();
 // Register the ChatService
 builder.Services.AddSingleton<ChatService>();   
+// Register the NotificationService
+builder.Services.AddSingleton<NotificationService>();
 // Register Controllers 
 builder.Services.AddControllers();  
 
