@@ -59,17 +59,32 @@ namespace backend.api.Controllers
         [HttpGet]
         [Route("GetUserUnreadedMessage")]
         public async Task<IActionResult> GetUserUnReadedMessage([FromQuery] string userid){
-            
+
             if(string.IsNullOrEmpty(userid)){
                 return BadRequest(new {message = "problem with provided query parameters."});
             }
 
             List<UnReadedMessages> urm = await _chatService.GetUserUnreadedmsgs(userid);
 
+            // Calculate the total number of unread messages for the user
             int totalUnreadedMessageCount = urm.Sum(msg => msg.NumOfUnreadedMessages);
 
             return Ok(new {messages = urm, total = totalUnreadedMessageCount});
         }
+
+        [HttpGet]
+        [Route("MarkMsgAsReaded")]
+        public async Task<IActionResult> MarkMessageAsReaded([FromQuery] string mainuid, [FromQuery] string otheruid){ 
+
+            if(string.IsNullOrEmpty(mainuid) || string.IsNullOrEmpty(otheruid)){
+                return BadRequest(new {message = "problem with provided query parameters."});
+            }
+            
+            // Call the service to mark messages as read between the two users
+            bool isMarked = await _chatService.MarkMsgsAsReaded(otheruid, mainuid);
+            return Ok(new {isMarked});
+        }
+
 
     }
 }
