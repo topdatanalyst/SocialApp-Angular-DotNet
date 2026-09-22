@@ -7,7 +7,7 @@ namespace backend.api.Models
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string Id {get;set;} = null!;
-        public string Deatils {get;set;} = null!;
+        public string Details {get;set;} = null!;
         public string Mainuid {get;set;} = null!;
         public string Targetid {get;set;} = null!;
 

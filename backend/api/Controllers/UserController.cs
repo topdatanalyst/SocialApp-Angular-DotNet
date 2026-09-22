@@ -15,11 +15,15 @@ namespace backend.api.Controllers
     {
         private readonly UserService _userService;
         private readonly IConfiguration _configuration;
+        private readonly NotificationService _notificationService;
 
-        public UserController(UserService userService, IConfiguration configuration)
+        public UserController(UserService userService,
+         IConfiguration configuration,
+         NotificationService notificationService)
         {
             _userService = userService;
             _configuration = configuration;
+            _notificationService = notificationService;
         }
 
         [HttpPost]
@@ -238,6 +242,17 @@ namespace backend.api.Controllers
                     fo2.Add(user1.Id);
                     user2.Followers = fo2;
                     //TODO send notification to user2 that user1 is following them  
+                    var deat = user1.Username + " Start Following You";
+                    var usin = new UserIn{Name = user1.Username, Avatar = user1.ImageUrl};
+                    // Created notification object
+                    var notification = new Notification {
+                        Mainuid = user2.Id,
+                        Targetid = user1.Id,
+                        Details = deat,
+                        user = usin
+                    };
+                    await _notificationService.CreateNotification(notification);
+
                 }
 
                 // update the users in the database

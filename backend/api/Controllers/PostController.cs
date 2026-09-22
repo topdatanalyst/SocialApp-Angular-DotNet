@@ -12,13 +12,18 @@ namespace backend.api.Controllers
     [Route("api/[controller]")]
     public class PostController: ControllerBase
     {
-         private readonly PostService _postService;
+        private readonly PostService _postService;
         private readonly IConfiguration _configuration;
+        private readonly NotificationService _notificationService;
+        
 
-        public PostController(PostService postService, IConfiguration configuration)
+        public PostController(PostService postService,
+         IConfiguration configuration,
+         NotificationService notificationService)
         {
             _postService = postService;
             _configuration = configuration;
+            _notificationService = notificationService;
         }
 
         [HttpPost]
@@ -63,7 +68,7 @@ namespace backend.api.Controllers
         }
 
         [HttpPost]
-        [Route("{id}/commentPost")]//, Authorize
+        [Route("{id}/commentPost"), Authorize]
         public async Task<IActionResult> CommentPost([FromRoute] string id, [FromBody] CommentBodyInterface body){
 
             if(body.Value is null || id is null){
@@ -81,12 +86,32 @@ namespace backend.api.Controllers
 
             if(npost is null) return NotFound(new {message = "proplem with prodived value", Success = false});
 
+            // Check userID
+            var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
+            if(post.Creator != null && userIDToken != null)
+            {
+                // Call notification Start 
+                var user = new User{};
+                user = await _postService.GetUsByid(userIDToken);
+                if (user is not null){
+                    //send notification to user2 that user1 is following them         
+                    var deat = user.Username + " Comment On Your Post";
+                    var usin = new UserIn{Name = user.Username, Avatar = user.ImageUrl};
+                    var notification = new Notification {
+                        Mainuid = post.Creator,
+                        Targetid =id,
+                        Details = deat,
+                        user = usin
+                    };
+            
+                    await _notificationService.CreateNotification(notification);      
+                }                
+            }
             return Ok(new {data=post});
-
         }
 
-         [HttpGet]
-         [Route("searchPost")]
+        [HttpGet]
+        [Route("searchPost")]
         public async Task<IActionResult> SearchForUsersPost([FromQuery] string searchQuery){
 
             if(searchQuery is null){
@@ -184,25 +209,24 @@ namespace backend.api.Controllers
                 post.Likes.Remove(userIDToken);
             } else {
                 post.Likes.Add(userIDToken);
-                // TODO Call Notification .. notofy the user about the new user like about the post
-                // if (post.creator != null){
-                //         var user = new User{};
-                //     user = await _postService.GetUsByid(userIDToken);
-                //     if (user is not null){
-                                
-                //     var deat = user.name + " Like Your Post";
-                //     var us = new UserIn{name = user.name, avatar = user.imageUrl};
-                //     var nofification = new Notification {
-                //         mainuid = post.creator,
-                //         targetid =id,
-                //         deatils = deat,
-                //         user = us
-                //     };
-                    
-                //     await _notificationService.CreateNotification(nofification);
-
-                // }
-                //}
+                //Call Notification .. notofy the user about the new user like about the post
+                if (post.Creator != null){                     
+                    var user = new User{};
+                    user = await _postService.GetUsByid(userIDToken);
+                    if (user is not null){    
+                       //TODO send notification to user2 that user1 is following them                              
+                        var deat = user.Username + " Like Your Post";
+                        var usin = new UserIn{Name = user.Username, Avatar = user.ImageUrl};
+                        // Created notification object
+                        var notification = new Notification {
+                            Mainuid = post.Creator,
+                            Targetid =id,
+                            Details = deat,
+                            user = usin
+                        };                    
+                        await _notificationService.CreateNotification(notification);
+                    }
+                }
             }
 
             // upate post up
