@@ -9,5 +9,6 @@ namespace backend.api.Models
         public string MessageCollection { get; set; } = null!;
         public string UnMessageCollection { get; set; } = null!;
         public string NotificationCollection { get; set; } = null!; 
+        public string CommentCollection { get; set; } = null!;
     }
 }
