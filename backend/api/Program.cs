@@ -3,7 +3,7 @@ using backend.api.Models;
 using backend.api.Services; 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models; 
+using Microsoft.OpenApi;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -80,19 +80,11 @@ builder.Services.AddSwaggerGen(options =>
     };
     // Add the security definition to Swagger   
     options.AddSecurityDefinition("Bearer", securityScheme);
-    var securityRequirement = new OpenApiSecurityRequirement
-    {
-        [new OpenApiSecurityScheme
-        {
-            Reference = new OpenApiReference
-            {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        }] = Array.Empty<string>()
-    };
     // Add the security requirement to Swagger  
-    options.AddSecurityRequirement(securityRequirement);
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
 });
 
 // Add Cors policy to allow requests from the Angular frontend
@@ -107,10 +99,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseHttpsRedirection();
 app.MapControllers();
 
 app.MapGet("/", () => "Welcome to the SocialAPI Rest!");
 
 app.Run();
-
