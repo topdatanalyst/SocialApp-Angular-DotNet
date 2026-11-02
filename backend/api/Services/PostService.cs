@@ -6,7 +6,7 @@ using MongoDB.Bson.Serialization;
 
 namespace backend.api.Services
 {
-    public class PostService
+    public class PostService : IPostService
     {
         private readonly IMongoCollection<User> _userCollection;
         private readonly IMongoCollection<Post> _postCollection;
@@ -23,16 +23,16 @@ namespace backend.api.Services
             _commentCollection = mongoDatabase.GetCollection<Comment>(mongoDBSettings.Value.CommentCollection);
         }
 
-        public async Task CreateOnePostAsync(Post post){
+        public virtual async Task CreateOnePostAsync(Post post){
         await _postCollection.InsertOneAsync(post);
         return;
         }
 
-        public async Task<Post?> UpdatePost(string id, Post newPost){
+        public virtual async Task<Post?> UpdatePost(string id, Post newPost){
             return await _postCollection.FindOneAndReplaceAsync(x => x.Id == id, newPost);
         }
 
-        public async Task<PostResponse?> GetPostByID(string id){
+        public virtual async Task<PostResponse?> GetPostByID(string id){
              var objectId =  ObjectId.Parse(id);
              // Create a filter to find the post by its ObjectId
              var filter = Builders<Post>.Filter.Eq("_id", objectId);
@@ -45,17 +45,17 @@ namespace backend.api.Services
              return result;
         }    
         
-        public async Task<User?> GetUsByid(string id){
+        public virtual async Task<User?> GetUsByid(string id){
             return await _userCollection.Find(x => x.Id == id).FirstOrDefaultAsync();
         }
 
-        public async Task DeletePostAsync(string id){
+        public virtual async Task DeletePostAsync(string id){
             FilterDefinition<Post> filter = Builders<Post>.Filter.Eq("Id", id);
             await _postCollection.DeleteOneAsync(filter);
             return;
         }
 
-        public async Task<(List<Post>, List<User>)> Search(string searchQuery){
+        public virtual async Task<(List<Post>, List<User>)> Search(string searchQuery){
 
              /* // Create filter definitions for searching posts and users
             FilterDefinition<Post> FilterPost = new BsonDocument
@@ -92,35 +92,98 @@ namespace backend.api.Services
 
             return (posts, users);
         }
-        public Object Query(List<string> ides, int? queryPage)
+
+        /// <summary>
+        /// Query posts created by users whose IDs are in the provided list, with pagination support.
+        /// </summary>
+        /// <param name="ides"></param>
+        /// <param name="queryPage"></param>
+        /// <returns></returns>
+        public virtual async Task<Object> Query(List<string> ides, int? queryPage)
         {
-            // Create a filter to find posts where the creator is in the provided list of IDs
-            var filter = Builders<Post>.Filter.In("creator", ides);
+            // Create a filter to match posts created by users whose IDs are in the provided list
+            // Crea un filtro per corrispondere ai post creati dagli utenti i cui ID sono nella lista fornita
+            var filterDef = new BsonDocument("$or", new BsonArray
+            {
+                new BsonDocument("creator", new BsonDocument("$in", new BsonArray(ides.Select(id => ObjectId.Parse(id)).ToList()))),
+                new BsonDocument("creator", new BsonDocument("$in", new BsonArray(ides)))
+            });
 
-            // Sort the results in descending order based on the "Id" field
-            var sort = Builders<Post>.Sort.Descending("Id");
-
-            // Find the posts matching the filter and sort them
-            var find = _postCollection.Find(filter).Sort(sort);
-
-            // Determine the current page number, defaulting to 1 if not provided or if it's 0
+            // Determine the current page for pagination, defaulting to 1 if not provided or if the provided value is 0
+            // Determina la pagina corrente per la paginazione, impostando il valore predefinito a 1 se non fornito o se il valore fornito è 0
             int currentPage = queryPage.GetValueOrDefault(1) == 0 ? 1 : queryPage.GetValueOrDefault(1);
-
-            // Set the number of posts to display per page
-            int perPage = 3;
-            var numberOfPages = find.CountDocuments() / perPage;
             
+            // Set the number of posts to display per page for pagination
+            // Imposta il numero di post da visualizzare per pagina per la paginazione
+            int perPage = 3;
+            var total = await _postCollection.CountDocumentsAsync(filterDef);
+            var numberOfPages = (int)Math.Ceiling((double)total / perPage);
+            
+            // Build the aggregation pipeline to retrieve posts with comments and user information, applying pagination
+            // Costruisci il pipeline di aggregazione per recuperare i post con commenti e informazioni sull'utente, applicando la paginazione
+            var pipeline = new List<BsonDocument>();
+            pipeline.Add(new BsonDocument("$match", filterDef));
+            pipeline.Add(new BsonDocument("$sort", new BsonDocument("_id", -1)));
+            pipeline.Add(new BsonDocument("$skip", (currentPage -1) * perPage));
+            pipeline.Add(new BsonDocument("$limit", perPage));
+
+            // Add the stages to retrieve posts with comments and user information
+            // Aggiungi le fasi per recuperare i post con commenti e informazioni sull'utente
+            pipeline.AddRange(BuildPostWithCommentsAndUserPipeline());
+
+            // Execute the aggregation pipeline and retrieve the list of posts
+            // Esegui il pipeline di aggregazione e recupera l'elenco dei post  
+            var posts = await _postCollection.Aggregate<PostResponse>(pipeline).ToListAsync();
+
             return new 
             {
-                // Skip the appropriate number of posts based on the current page and limit the results to the specified number per page
-                data = find.Skip((currentPage -1) * perPage).Limit(perPage).ToList(),
+                data = posts,
                 numberOfPages,
                 currentPage,
             };
+
+        }
+
+        public virtual async Task<Comment> CreateComment(string postId, string userId, string value)
+        {
+            var comment = new Comment
+            {
+                PostId = postId,
+                UserId = userId,
+                Value = value,
+                CreatedAt = DateTime.Now
+            };
+
+            await _commentCollection.InsertOneAsync(comment);
+            return comment;
+        }
+
+        public async Task<bool> DeleteComment(string commentId, string userId, string postCreatorId)
+        {
+            // Retrieve the comment from the database based on the provided commentId
+            var comment = await _commentCollection 
+                .Find(x => x.Id == commentId) 
+                .FirstOrDefaultAsync(); 
+            
+            // If the comment is not found, return false
+            if (comment == null) return false; 
+            // check authorization : user must be coment anthor or psot creator 
+            if (comment.UserId != userId && postCreatorId != userId)
+            {
+                throw new UnauthorizedAccessException("Not authorized to delte this comment");
+            }
+
+            var result = await _commentCollection.DeleteOneAsync(x => x.Id == commentId);
+            return result.DeletedCount > 0; 
+        }
+
+         public async Task<PostResponse?> GetPostWithComments(string postId)
+        {
+            return await GetPostByID(postId); // uses aggregation
         }
 
         private List<BsonDocument> BuildPostWithCommentsAndUserPipeline(FilterDefinition<Post>? matchFilter = null)
-      {
+       {
                 var pipeline = new List<BsonDocument>();
             
                 // 1 match stage (if filter provided)
@@ -234,4 +297,5 @@ namespace backend.api.Services
         }
 
     }
+
 }

@@ -1,6 +1,6 @@
-using backend.Models;
+using backend.api.Models;
 
-namespace backend.Services
+namespace backend.api.Services
 {
     public interface IPostService {
         Task CreateOnePostAsync(Post post);

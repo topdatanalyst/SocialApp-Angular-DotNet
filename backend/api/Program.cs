@@ -15,7 +15,7 @@ builder.Services.Configure<MongoDBSettings>(builder.Configuration.GetSection("Mo
 // Register the UserService         
 builder.Services.AddSingleton<UserService>();
 // Register the PostService
-builder.Services.AddSingleton<PostService>();
+builder.Services.AddSingleton<IPostService, PostService>();
 // Register the ChatService
 builder.Services.AddSingleton<ChatService>();   
 // Register the NotificationService
