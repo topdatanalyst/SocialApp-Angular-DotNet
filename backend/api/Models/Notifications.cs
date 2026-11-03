@@ -14,7 +14,7 @@ namespace backend.api.Models
         public bool IsReaded {get; set;} = false;
         public DateTime? CreatedAt {get; set;} = DateTime.Now;
 
-        public UserIn user {get;set;} = null!;
+        public UserIn User {get;set;} = null!;
     }
 
     public class UserIn {

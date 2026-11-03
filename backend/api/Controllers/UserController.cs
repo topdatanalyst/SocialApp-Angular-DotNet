@@ -249,7 +249,7 @@ namespace backend.api.Controllers
                         Mainuid = user2.Id,
                         Targetid = user1.Id,
                         Details = deat,
-                        user = usin
+                        User = usin
                     };
                     await _notificationService.CreateNotification(notification);
 

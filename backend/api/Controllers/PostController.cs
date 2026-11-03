@@ -12,12 +12,12 @@ namespace backend.api.Controllers
     [Route("api/[controller]")]
     public class PostController: ControllerBase
     {
-        private readonly PostService _postService;
+        private readonly IPostService _postService;
         private readonly IConfiguration _configuration;
         private readonly NotificationService _notificationService;
         
 
-        public PostController(PostService postService,
+        public PostController(IPostService postService,
          IConfiguration configuration,
          NotificationService notificationService)
         {
@@ -56,58 +56,51 @@ namespace backend.api.Controllers
         [HttpGet]
         [Route("getPostById/{id}")]
         public async Task<IActionResult> GetPostById([FromRoute] string id){
+
             if(id is null){
-                return BadRequest(new {message = "proplem with provided id"});
+               return BadRequest(new {message = "proplem with provided id"});
             }
-            var post = new Post{};
-            post = await _postService.GetPostByID(id);
+            // Call the PostService to retrieve the post by ID
+            var post = await _postService.GetPostByID(id);
 
             if(post is null) return NotFound(new {message = "post not found", Success = false});
 
-            return Ok(new {post = post});
+            return Ok(new { post });
         }
 
         [HttpPost]
         [Route("{id}/commentPost"), Authorize]
         public async Task<IActionResult> CommentPost([FromRoute] string id, [FromBody] CommentBodyInterface body){
 
-            if(body.Value is null || id is null){
+             if(body.Value is null || id is null){
                 return BadRequest(new {message = "proplem with provided body data id or comment value"});
-            }
-
+             }
             var post = await _postService.GetPostByID(id);
             if(post is null) return NotFound(new {message = "post not found", Success = false});
 
-            // Add the comment to the post's comments collection
-            post.Comments.Add(body.Value);
-
-            // Update the post in the database
-            var npost = await _postService.UpdatePost(id, post);
-
-            if(npost is null) return NotFound(new {message = "proplem with prodived value", Success = false});
-
-            // Check userID
             var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
-            if(post.Creator != null && userIDToken != null)
-            {
-                // Call notification Start 
-                var user = new User{};
-                user = await _postService.GetUsByid(userIDToken);
-                if (user is not null){
-                    //send notification to user2 that user1 is following them         
+            if(userIDToken is null) return Unauthorized();
+
+            // Call the PostService to create a comment for the post
+            await _postService.CreateComment(id, userIDToken, body.Value);
+
+            if(post.Creator != null && userIDToken != null ){
+            // Call Notification .. notofy the user about the new user comment about the post
+            var user = await _postService.GetUsByid(userIDToken);
+                if (user is not null){                            
                     var deat = user.Username + " Comment On Your Post";
-                    var usin = new UserIn{Name = user.Username, Avatar = user.ImageUrl};
-                    var notification = new Notification {
+                    var us = new UserIn{Name = user.Username, Avatar = user.ImageUrl};
+                    var nofification = new Notification {
                         Mainuid = post.Creator,
                         Targetid =id,
                         Details = deat,
-                        user = usin
-                    };
-            
-                    await _notificationService.CreateNotification(notification);      
-                }                
+                        User = us
+                    };                
+                    await _notificationService.CreateNotification(nofification);
+                }
             }
             return Ok(new {data=post});
+
         }
 
         [HttpGet]
@@ -130,22 +123,18 @@ namespace backend.api.Controllers
         [Route("getpostsPagenation")]
         public async Task<IActionResult> GetPostsPagenationAsync([FromQuery] int Page, [FromQuery] string id){
 
-            // Validate the provided id
             if(id == "undefind") return BadRequest(new {message = "proplem with provided id"});
 
-            var user = new User{};
-            // Retrieve the user by id using the PostService
-            user = await _postService.GetUsByid(id);
+            var user = await _postService.GetUsByid(id);
 
             if(user is null || user.Id is null){
                 return NotFound(new {message = "user with given id is not found."});
             }
- 
-            // Get the list of user IDs that the user is following
+
             var ides = user.Following;
             ides.Add(user.Id.ToString());
 
-            return Ok(_postService.Query(ides, Page));
+            return Ok(await _postService.Query(ides, Page));
         }
 
         [HttpPatch]
@@ -156,99 +145,122 @@ namespace backend.api.Controllers
                 return BadRequest(new {message = "proplem with provided body data."});
             }
 
-            // Get the user ID from the JWT token   
             var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
             if (userIDToken is null){
                 return NotFound(new {message = "Not Authorized."});
             }
 
-            // Retrieve the post by ID using the PostService
-            // id is the post ID
-            var post = new Post{};
-            post = await _postService.GetPostByID(id);
+            var postResponse = await _postService.GetPostByID(id);
 
-            if (post is null){
+            if (postResponse is null){
                 return NotFound(new {message = "post with given id is not found.."});
             }
 
-            if (userIDToken != post.Creator){
+            if (userIDToken != postResponse.Creator){
                 return Unauthorized(new {message = "Not Authorized. you are not the creator of post"});
 
             }
 
-            // Update the post properties with the values from the request body
-            post.Title = body.Title?? post.Title;
-            post.Message = body.Message?? post.Message;
-            post.SelectedFile = body.SelectedFile?? post.SelectedFile;
-
-            // Update the post using the PostService
-            var upPost = await _postService.UpdatePost(id, post);
-            if (upPost is null){
-                return BadRequest(new {message = "can not update the post."});
+            if (body.Title is null && body.Message is null && body.SelectedFile is null)
+            {
+                return BadRequest(new {message = "proplem with profived body data."});
             }
 
-            return Ok(new { post = post });
+            // Create a new Post object with updated values, keeping the existing values if not provided in the request body
+            var postUpdate = new Post
+            {
+                Id = id,
+                Creator = postResponse.Creator ,
+                Title = body.Title ?? postResponse.Title,
+                Message = body.Message ?? postResponse.Message,
+                SelectedFile = body.SelectedFile ?? postResponse.SelectedFile,
+                Likes = postResponse.Likes,
+                CreatedAt = postResponse.CreatedAt ?? DateTime.Now,
+            };    
+
+            // Call the PostService to update the post
+            var upPost = await _postService.UpdatePost(id, postUpdate);
+            if (upPost is null){
+                return BadRequest(new {message = "can not update the post."});
+            }    
+
+            return Ok(new {post = upPost});    
         }
 
         [HttpPatch]
         [Route("{id}/likePost"), Authorize]
         public async Task<IActionResult> LikeDisLikePost([FromRoute] string id){
+            // Get the user ID from the authenticated user's claims
             var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
             if (userIDToken is null){
                 return NotFound(new {message = "Not Authorized."});
             }
             
-            var post = new Post{};
-            post = await _postService.GetPostByID(id);
+            var postResponse = await _postService.GetPostByID(id);
             
-            if (post is null){
+            if (postResponse is null){
                 return NotFound(new {message = "post with given id is not found.."});
             }
 
-            if(post.Likes.Contains(userIDToken)){
-                post.Likes.Remove(userIDToken);
+            var likes = postResponse.Likes ?? new List<string>();
+
+            if(likes.Contains(userIDToken)){
+                likes.Remove(userIDToken);
             } else {
-                post.Likes.Add(userIDToken);
-                //Call Notification .. notofy the user about the new user like about the post
-                if (post.Creator != null){                     
-                    var user = new User{};
+            likes.Add(userIDToken);
+                // TODO Call Notification Service to notify the post creator about the like
+                if (postResponse.Creator != null){
+                        var user = new User{};
                     user = await _postService.GetUsByid(userIDToken);
-                    if (user is not null){    
-                       //TODO send notification to user2 that user1 is following them                              
+                    if (user is not null){
+                                
                         var deat = user.Username + " Like Your Post";
-                        var usin = new UserIn{Name = user.Username, Avatar = user.ImageUrl};
-                        // Created notification object
-                        var notification = new Notification {
-                            Mainuid = post.Creator,
+                        var us = new UserIn{Name = user.Username, Avatar = user.ImageUrl};
+                        var nofification = new Notification {
+                            Mainuid = postResponse.Creator,
                             Targetid =id,
                             Details = deat,
-                            user = usin
-                        };                    
-                        await _notificationService.CreateNotification(notification);
+                            User = us
+                        };
+                        
+                        await _notificationService.CreateNotification(nofification);
                     }
                 }
             }
 
-            // upate post up
-            var upPost = await _postService.UpdatePost(id, post);
+            // Create a new Post object with updated likes
+            var postUpdate = new Post
+            {
+                Id = id,
+                Creator = postResponse.Creator ,
+                Title =  postResponse.Title,
+                Message =  postResponse.Message,
+                SelectedFile =  postResponse.SelectedFile,
+                Likes = likes,
+                CreatedAt = postResponse.CreatedAt ?? DateTime.Now,
+            };    
+
+            // Update the post with the new likes   
+            var upPost = await _postService.UpdatePost(id, postUpdate);
             if (upPost is null){
                 return BadRequest(new {message = "can not update the post."});
             }    
 
-            return Ok(new {post = post});  
+            var enrichedPost = await _postService.GetPostByID(id);
+            return Ok(new {post = enrichedPost});  
 
         }
 
         [HttpDelete]
         [Route("{id}/deletePost"), Authorize]
         public async Task<IActionResult>  DeletePost([FromRoute] string id){
-            var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
+            // Get the user ID from the authenticated user's claims
+           var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
             if (userIDToken is null){
                 return NotFound(new {message = "Not Authorized."});
             }
             
-            var post = new Post{};
-            post = await _postService.GetPostByID(id);
+            var post = await _postService.GetPostByID(id);
             
             if (post is null){
                 return NotFound(new {message = "post with given id is not found.."});
@@ -260,10 +272,7 @@ namespace backend.api.Controllers
 
             await _postService.DeletePostAsync(id);
             return Ok(new {message = "post Deleted Successfully."});
-
         }
-
-
 
     }
 }
