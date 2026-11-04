@@ -274,5 +274,40 @@ namespace backend.api.Controllers
             return Ok(new {message = "post Deleted Successfully."});
         }
 
+        [HttpDelete]
+        [Route("/comments/{postId}/comments/{commentId}"), Authorize] 
+        public async Task<IActionResult> DeleteComment([FromRoute] string postId, [FromRoute] string commentId)
+        {
+            // Get the user ID from the authenticated user's claims
+            var userIDToken = User.FindFirstValue(ClaimTypes.NameIdentifier)?.ToString();
+            if (userIDToken is null){
+                    return NotFound(new {message = "Not Authorized."});
+            }
+        
+            // Check if the post exists
+            var post = await _postService.GetPostByID(postId);
+            if (post is null) return NotFound(new {message = "post not found"});
+
+            var postCreatorId = post.Creator ?? "unnown";
+            
+            // Call the PostService to delete the comment
+            try
+            {
+            var deleted = await _postService.DeleteComment(commentId, userIDToken, postCreatorId);
+            if (!deleted) return NotFound(new {message = "comment not found"});
+
+            return Ok(
+                new
+                {
+                    message = "Comment Deleted Successfully",
+                    deletedCommentId = commentId
+                });
+
+            } catch (UnauthorizedAccessException)
+           {
+                return Unauthorized(new {message = "You are not authoreized to delete this comment"});
+            }
+        }
+
     }
 }
