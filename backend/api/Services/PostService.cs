@@ -237,6 +237,8 @@ namespace backend.api.Services
                             new BsonDocument("$sort", new BsonDocument("createdAt", -1)),
 
                             // lookup user for each comment
+                            // lookup utente per ciascun commento
+                            // Scopo di questo $lookup è arricchire ciascun commento con le informazioni essenziali dell’autore (nome e immagine).
                             new BsonDocument("$lookup", new BsonDocument
                             {
                                 { "from", "users" },
@@ -255,7 +257,10 @@ namespace backend.api.Services
                                 },
                                 { "as", "user" }
                             }),
-                            // reunwind user obj
+                            // re unwind user obj
+                            // "unwind" the user object to get a single user document instead of an array  
+                            // "unwind" l'oggetto user per ottenere un singolo documento utente invece di un array
+                            // Scopo di questo $unwind è trasformare l’array user prodotto dal $lookup in un singolo oggetto, così da poter accedere direttamente ai campi dell’autore del commento.
                             new BsonDocument("$unwind", new BsonDocument
                                     {
                                         { "path", "$user" },

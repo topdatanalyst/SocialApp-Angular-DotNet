@@ -4,11 +4,24 @@ using backend.api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-
+using MongoDB.Driver;
+using Mongo.Migration.Startup;
+using Mongo.Migration.Startup.DotNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+
+// 1. Configura il client MongoDB standard
+var mongoClient = new MongoClient("mongodb://localhost:27017");
+builder.Services.AddSingleton<IMongoClient>(mongoClient);
+
+// 2. Configura Mongo.Migration usando AddMongoMigration
+builder.Services.AddMigration(new MongoMigrationSettings
+{
+    ConnectionString = "mongodb://localhost:27017",
+    Database = "SocialDb" // Metti il nome del tuo database
+});
 
 // Configure MongoDB settings
 builder.Services.Configure<MongoDBSettings>(builder.Configuration.GetSection("MongoDB"));
